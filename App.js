@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   StyleSheet,
@@ -6,7 +6,10 @@ import {
   View,
   TouchableOpacity,
   ToastAndroid,
+  ScrollView,
+  Image,
 } from "react-native";
+
 import { WebView } from "react-native-webview";
 import { MaterialIcons } from "@expo/vector-icons";
 import Constants from "expo-constants";
@@ -15,53 +18,121 @@ import Spacer from "react-native-spacer";
 import { API_TOKEN } from "@env";
 import { RootSiblingParent } from "react-native-root-siblings";
 import Toast from "react-native-root-toast";
+import { AntDesign } from "@expo/vector-icons";
+import { Entypo } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+
+const updateApi = async (pin, value, success_message) => {
+  const api_token = API_TOKEN;
+  let update_url = "https://blynk.cloud/external/api/update?token=" + api_token;
+  update_url = update_url + "&pin=" + pin + "&value=" + value;
+
+  await fetch(update_url)
+    .then((response) => {
+      if (!response.ok) {
+        console.log("POST ERROR: " + JSON.stringify(response));
+        throw new Error("HTTP error " + response.status);
+      }
+      console.log("POST RESPONSE: " + JSON.stringify(response));
+
+      Toast.show(success_message, {});
+    })
+    .catch((error) => {
+      Toast.show("Error: " + error.message, {});
+    });
+};
+
+const LeafImage = require("./assets/leaf.jpeg");
 
 export default function App() {
-  const api_token = API_TOKEN;
-
-  const handleButtonPress = (direction) => {
-    let update_url =
-      "https://blynk.cloud/external/api/update?token=" + api_token;
+  const [transform, setTransform] = React.useState({ rotate: "0deg" });
+  const [cameraFeed, setCameraFeed] = React.useState(false);
+  const [showPicture, setShowPicture] = React.useState(false);
+  const updatePin = (direction) => {
     switch (direction) {
       case "left":
         pin = "v0";
         value = "1";
+        setTransform({ rotateY: "180deg" });
         break;
       case "right":
         pin = "v1";
         value = "1";
+        setTransform({ rotateY: "0deg" });
         break;
       case "forward":
         pin = "v2";
         value = "1";
+        setTransform({ rotate: "270deg" });
+        break;
+      case "camera left":
+        pin = "v5";
+        value = "1";
+        break;
+      case "camera right":
+        pin = "v6";
+        value = "1";
         break;
     }
 
-    update_url = update_url + "&pin=" + pin + "&value=" + value;
-
-    fetch(update_url)
-      .then((response) => {
-        if (!response.ok) {
-          console.log("POST ERROR: " + JSON.stringify(response));
-          throw new Error("HTTP error " + response.status);
-        }
-        console.log("POST RESPONSE: " + JSON.stringify(response));
-
-        Toast.show("Moved " + direction + " successfully", {
-          position: Toast.positions.CENTER,
-        });
-      })
-      .catch((error) => {
-        Toast.show("Error: " + error.message, {
-          position: Toast.positions.CENTER,
-        });
-      });
+    updateApi(pin, value, "Moved " + direction + " successfully");
   };
+
+  useEffect(() => {
+    if (cameraFeed) {
+      updateApi("v7", "1", "Feed started");
+    } else {
+      updateApi("v7", "0", "Feed stopped");
+    }
+  }, [cameraFeed]);
 
   return (
     <RootSiblingParent>
-      <View style={styles.container}>
+      <ScrollView style={styles.container}>
+        <Spacer height={32} />
+        <Text
+          style={{
+            fontSize: 24,
+            fontWeight: "bold",
+            marginBottom: 16,
+          }}
+        >
+          Live Video Feed
+        </Text>
         <View style={styles.webViewContainer}>
+          <View
+            style={{
+              position: "absolute",
+              padding: 16,
+              left: 0,
+              zIndex: 1,
+              backgroundColor: "white",
+              borderRadius: 50,
+              opacity: 0.5,
+              margin: 8,
+            }}
+          >
+            <TouchableOpacity onPress={() => updatePin("camera left")}>
+              <AntDesign name="arrowleft" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              position: "absolute",
+              padding: 16,
+              right: 0,
+              zIndex: 1,
+              backgroundColor: "white",
+              borderRadius: 50,
+              opacity: 0.5,
+              margin: 8,
+            }}
+          >
+            <TouchableOpacity onPress={() => updatePin("camera right")}>
+              <AntDesign name="arrowright" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+
           <WebView
             style={styles.webView}
             originWhitelist={["*"]}
@@ -69,12 +140,37 @@ export default function App() {
               html: "<div style='background-color: gray; height: 100%; width: 100%;'></div>",
             }}
           />
+
+          <View
+            style={{
+              position: "absolute",
+              padding: 16,
+              bottom: 0,
+              zIndex: 1,
+              backgroundColor: "white",
+              borderRadius: 50,
+              opacity: 0.5,
+              margin: 8,
+            }}
+          >
+            {cameraFeed ? (
+              <TouchableOpacity onPress={() => setCameraFeed(false)}>
+                <Entypo name="controller-stop" size={30} color="black" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => setCameraFeed(true)}>
+                <AntDesign name="caretright" size={30} color="black" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
+
+        <Spacer height={32} />
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => handleButtonPress("forward")}
+            onPress={() => updatePin("forward")}
           >
             <MaterialIcons name="keyboard-arrow-up" size={30} color="#fff" />
           </TouchableOpacity>
@@ -83,14 +179,28 @@ export default function App() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => handleButtonPress("left")}
+            onPress={() => updatePin("left")}
           >
             <MaterialIcons name="keyboard-arrow-left" size={30} color="#fff" />
           </TouchableOpacity>
 
+          <View
+            style={{
+              padding: 16,
+              marginHorizontal: 8,
+              transform: [transform],
+            }}
+          >
+            <MaterialCommunityIcons
+              name="robot-mower-outline"
+              size={40}
+              color="black"
+            />
+          </View>
+
           <TouchableOpacity
             style={styles.button}
-            onPress={() => handleButtonPress("right")}
+            onPress={() => updatePin("right")}
           >
             <MaterialIcons name="keyboard-arrow-right" size={30} color="#fff" />
           </TouchableOpacity>
@@ -99,16 +209,41 @@ export default function App() {
         <Spacer height={32} />
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.rectButton}>
+          <TouchableOpacity
+            style={styles.rectButton}
+            onPress={() => updateApi("v4", "1", "Sprayed successfully")}
+          >
             <FontAwesome5 name="spray-can" size={30} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.rectButton}>
+          <TouchableOpacity
+            style={styles.rectButton}
+            onPress={() => {
+              setCameraFeed(false);
+              updateApi("v8", "1", "Captured successfully");
+              setShowPicture(true);
+            }}
+          >
             <FontAwesome5 name="camera" size={30} color="white" />
           </TouchableOpacity>
         </View>
 
+        {showPicture && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              width: "100%",
+
+              padding: 16,
+            }}
+          >
+            <Image source={LeafImage} style={styles.image} />
+            <Text style={{ fontSize: 24, fontWeight: "bold" }}>Leaves</Text>
+          </View>
+        )}
+
         <StatusBar style="auto" />
-      </View>
+      </ScrollView>
     </RootSiblingParent>
   );
 }
@@ -117,22 +252,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    marginTop: Constants.statusBarHeight,
+    paddingHorizontal: 8,
   },
   webViewContainer: {
     flex: 1,
-    marginTop: Constants.statusBarHeight,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
   webView: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: "red",
+    height: 300,
+    width: "100%",
   },
+
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 16,
+    marginBottom: 16,
   },
   button: {
     backgroundColor: "blue",
@@ -146,7 +285,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 16,
     backgroundColor: "blue",
-    borderRadius: 10,
+    borderRadius: 12,
     marginHorizontal: 8,
     flexDirection: "row",
     justifyContent: "center",
@@ -156,5 +295,10 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 24,
     padding: 8,
+  },
+  image: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
   },
 });
