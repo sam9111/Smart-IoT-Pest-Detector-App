@@ -35,6 +35,31 @@ const updateApi = async (pin, value, success_message) => {
       }
       console.log("POST RESPONSE: " + JSON.stringify(response));
 
+      if (success_message != "") {
+        Toast.show(success_message, {});
+      }
+    })
+    .catch((error) => {
+      Toast.show("Error: " + error.message, {});
+    });
+};
+
+const updateMultipleApi = async (pins, values, success_message) => {
+  const api_token = API_TOKEN;
+  let update_url = "https://blynk.cloud/external/api/update?token=" + api_token;
+
+  for (let i = 0; i < pins.length; i++) {
+    update_url = update_url + "&" + pins[i] + "=" + values[i];
+  }
+
+  await fetch(update_url)
+    .then((response) => {
+      if (!response.ok) {
+        console.log("POST ERROR: " + JSON.stringify(response));
+        throw new Error("HTTP error " + response.status);
+      }
+      console.log("POST RESPONSE: " + JSON.stringify(response));
+
       Toast.show(success_message, {});
     })
     .catch((error) => {
@@ -154,6 +179,27 @@ export default function App() {
           >
             <TouchableOpacity onPress={() => updatePin("camera right")}>
               <AntDesign name="arrowright" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              position: "absolute",
+              padding: 16,
+              top: 0,
+              zIndex: 1,
+              backgroundColor: "white",
+              borderRadius: 50,
+              opacity: 0.5,
+              margin: 8,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                updateApi("v5", "0", "");
+                updateApi("v6", "0", "");
+              }}
+            >
+              <AntDesign name="arrowup" size={24} color="black" />
             </TouchableOpacity>
           </View>
           <WebView
