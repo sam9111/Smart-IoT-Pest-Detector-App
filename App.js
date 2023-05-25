@@ -42,12 +42,12 @@ const updateApi = async (pin, value, success_message) => {
     });
 };
 
-const LeafImage = require("./assets/leaf.jpeg");
-
 export default function App() {
   const [transform, setTransform] = React.useState({ rotate: "0deg" });
   const [cameraFeed, setCameraFeed] = React.useState(false);
-  const [showPicture, setShowPicture] = React.useState(false);
+  const [diseased, setDiseased] = React.useState(null);
+  const [showBanner, setShowBanner] = React.useState(null);
+
   const updatePin = (direction) => {
     switch (direction) {
       case "left":
@@ -78,13 +78,37 @@ export default function App() {
     updateApi(pin, value, "Moved " + direction + " successfully");
   };
 
-  useEffect(() => {
-    if (cameraFeed) {
-      updateApi("v7", "1", "Feed started");
+  const updateDiseased = async () => {
+    const status = await fetch(
+      "https://blynk.cloud/external/api/get?token=" + API_TOKEN + "&v9"
+    )
+      .then((response) => {
+        if (!response.ok) {
+          console.log("GET ERROR: " + JSON.stringify(response));
+          throw new Error("HTTP error " + response.status);
+        }
+        console.log("GET RESPONSE: " + JSON.stringify(response));
+        return response.json();
+      })
+      .catch((error) => {
+        console.log("GET ERROR: " + error.message);
+        Toast.show("Error: " + error.message, {});
+      });
+
+    console.log("PLANT STATUS: " + status);
+
+    if (status == 0) {
+      setDiseased(true);
     } else {
-      updateApi("v7", "0", "Feed stopped");
+      setDiseased(false);
     }
-  }, [cameraFeed]);
+
+    // show banner for 5 seconds
+    setShowBanner(true);
+    setTimeout(() => {
+      setShowBanner(false);
+    }, 5000);
+  };
 
   return (
     <RootSiblingParent>
@@ -132,12 +156,11 @@ export default function App() {
               <AntDesign name="arrowright" size={24} color="black" />
             </TouchableOpacity>
           </View>
-
           <WebView
             style={styles.webView}
             originWhitelist={["*"]}
             source={{
-              html: "<div style='background-color: gray; height: 100%; width: 100%;'></div>",
+              uri: "http://192.168.1.38:8000",
             }}
           />
 
@@ -154,19 +177,27 @@ export default function App() {
             }}
           >
             {cameraFeed ? (
-              <TouchableOpacity onPress={() => setCameraFeed(false)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setCameraFeed(false);
+                  updateApi("v7", "0", "Feed stopped");
+                }}
+              >
                 <Entypo name="controller-stop" size={30} color="black" />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={() => setCameraFeed(true)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setCameraFeed(true);
+                  updateApi("v7", "1", "Feed started");
+                }}
+              >
                 <AntDesign name="caretright" size={30} color="black" />
               </TouchableOpacity>
             )}
           </View>
         </View>
-
         <Spacer height={32} />
-
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
@@ -175,7 +206,6 @@ export default function App() {
             <MaterialIcons name="keyboard-arrow-up" size={30} color="#fff" />
           </TouchableOpacity>
         </View>
-
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
@@ -205,9 +235,7 @@ export default function App() {
             <MaterialIcons name="keyboard-arrow-right" size={30} color="#fff" />
           </TouchableOpacity>
         </View>
-
         <Spacer height={32} />
-
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.rectButton}
@@ -220,25 +248,25 @@ export default function App() {
             onPress={() => {
               setCameraFeed(false);
               updateApi("v8", "1", "Captured successfully");
-              setShowPicture(true);
+              updateDiseased();
             }}
           >
             <FontAwesome5 name="camera" size={30} color="white" />
           </TouchableOpacity>
         </View>
 
-        {showPicture && (
+        {showBanner && (
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              width: "100%",
-
+              backgroundColor: diseased ? "red" : "green",
               padding: 16,
+              borderRadius: 8,
+              margin: 16,
             }}
           >
-            <Image source={LeafImage} style={styles.image} />
-            <Text style={{ fontSize: 24, fontWeight: "bold" }}>Leaves</Text>
+            <Text style={{ color: "white" }}>
+              {diseased ? "Diseased plant detected" : "Healthy plant detected"}
+            </Text>
           </View>
         )}
 
