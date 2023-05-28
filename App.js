@@ -104,6 +104,10 @@ export default function App() {
   };
 
   const updateDiseased = async () => {
+    // sleep for 5 seconds
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
     const status = await fetch(
       "https://blynk.cloud/external/api/get?token=" + API_TOKEN + "&v9"
     )
